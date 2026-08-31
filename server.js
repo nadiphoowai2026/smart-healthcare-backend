@@ -170,7 +170,55 @@ app.post("/register", async (req, res) => {
 
 });
 
+app.post("/signup", async (req, res) => {
 
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.json({
+            success: false,
+            message: "Username and password are required."
+        });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const sql =
+            "INSERT INTO users (username, password) VALUES (?, ?)";
+
+        db.query(
+            sql,
+            [username, hashedPassword],
+            (err, result) => {
+
+                if (err) {
+                    console.error(err);
+
+                    return res.status(500).json({
+                        success: false,
+                        message: "Signup failed"
+                    });
+                }
+
+                res.json({
+                    success: true,
+                    message: "Signup successful!"
+                });
+            }
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Server error"
+        });
+    }
+
+});
 // ========================================
 // LOGIN
 // ========================================
