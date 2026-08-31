@@ -7,48 +7,16 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-// ========================================
-// MYANMAR LOCAL DATE
-// ========================================
 
-function getMyanmarDate() {
-
-    const now = new Date();
-
-    const myanmarTime =
-        new Date(
-            now.toLocaleString(
-                "en-US",
-                {
-                    timeZone: "Asia/Yangon"
-                }
-            )
-        );
-
-    const year =
-        myanmarTime.getFullYear();
-
-    const month =
-        String(
-            myanmarTime.getMonth() + 1
-        ).padStart(2, "0");
-
-    const day =
-        String(
-            myanmarTime.getDate()
-        ).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
-}
 // ========================================
 // MYSQL CONNECTION
 // ========================================
 
 const db = mysql.createConnection({
-    host: process.env.MYSQLHOST,
-    user: process.env.MYSQLUSER,
-    password: process.env.MYSQLPASSWORD,
-    database: process.env.MYSQLDATABASE,
+    host: process.env.MYSQLHOST || "localhost",
+    user: process.env.MYSQLUSER || "root",
+    password: process.env.MYSQLPASSWORD || "",
+    database: process.env.MYSQLDATABASE || "smart_healthcare",
     port: process.env.MYSQLPORT || 3306
 });
 
@@ -63,7 +31,6 @@ db.connect((err) => {
 
 });
 
-
 // ========================================
 // TEST SERVER
 // ========================================
@@ -74,16 +41,14 @@ app.get("/", (req, res) => {
 
 });
 
-
 // ========================================
-// REGISTER
+// REGISTER / SIGN UP
 // ========================================
 
 app.post("/register", async (req, res) => {
 
     const { username, password } = req.body;
 
-    // FIXED
     if (!username || !password) {
 
         return res.json({
@@ -105,7 +70,7 @@ app.post("/register", async (req, res) => {
 
                 if (err) {
 
-                    console.error(err);
+                    console.error("Check user error:", err);
 
                     return res.status(500).json({
                         success: false,
@@ -118,7 +83,7 @@ app.post("/register", async (req, res) => {
 
                     return res.json({
                         success: false,
-                        message: "Username already exists"
+                        message: "Account already exists."
                     });
 
                 }
@@ -136,7 +101,7 @@ app.post("/register", async (req, res) => {
 
                         if (err) {
 
-                            console.error(err);
+                            console.error("Register error:", err);
 
                             return res.status(500).json({
                                 success: false,
@@ -148,7 +113,8 @@ app.post("/register", async (req, res) => {
                         res.json({
                             success: true,
                             message: "Registration successful!",
-                            userId: result.insertId
+                            userId: result.insertId,
+                            username: username
                         });
 
                     }
@@ -159,7 +125,7 @@ app.post("/register", async (req, res) => {
 
     } catch (error) {
 
-        console.error(error);
+        console.error("Register error:", error);
 
         res.status(500).json({
             success: false,
@@ -170,55 +136,6 @@ app.post("/register", async (req, res) => {
 
 });
 
-app.post("/signup", async (req, res) => {
-
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-        return res.json({
-            success: false,
-            message: "Username and password are required."
-        });
-    }
-
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const sql =
-            "INSERT INTO users (username, password) VALUES (?, ?)";
-
-        db.query(
-            sql,
-            [username, hashedPassword],
-            (err, result) => {
-
-                if (err) {
-                    console.error(err);
-
-                    return res.status(500).json({
-                        success: false,
-                        message: "Signup failed"
-                    });
-                }
-
-                res.json({
-                    success: true,
-                    message: "Signup successful!"
-                });
-            }
-        );
-
-    } catch (error) {
-
-        console.error(error);
-
-        res.status(500).json({
-            success: false,
-            message: "Server error"
-        });
-    }
-
-});
 // ========================================
 // LOGIN
 // ========================================
@@ -227,7 +144,6 @@ app.post("/login", (req, res) => {
 
     const { username, password } = req.body;
 
-    // FIXED
     if (!username || !password) {
 
         return res.json({
@@ -247,7 +163,7 @@ app.post("/login", (req, res) => {
 
             if (err) {
 
-                console.error(err);
+                console.error("Login database error:", err);
 
                 return res.status(500).json({
                     success: false,
@@ -257,7 +173,6 @@ app.post("/login", (req, res) => {
             }
 
             if (results.length === 0) {
-
                 return res.json({
                     success: false,
                     message: "Invalid username or password"
@@ -268,6 +183,7 @@ app.post("/login", (req, res) => {
             const user = results[0];
 
             try {
+
                 const passwordMatch =
                     await bcrypt.compare(
                         password,
@@ -292,7 +208,7 @@ app.post("/login", (req, res) => {
 
             } catch (error) {
 
-                console.error(error);
+                console.error("Password error:", error);
 
                 res.status(500).json({
                     success: false,
@@ -306,7 +222,6 @@ app.post("/login", (req, res) => {
 
 });
 
-
 // ========================================
 // GET HEALTH DATA
 // ========================================
@@ -316,12 +231,12 @@ app.get("/health-data/:userId", (req, res) => {
     const userId = req.params.userId;
 
     const sql = 
-       ` SELECT *
+        `SELECT *
         FROM health_data
         WHERE user_id = ?
         ORDER BY record_date DESC
         LIMIT 1
-   ` ;
+    `;
 
     db.query(
         sql,
@@ -330,7 +245,7 @@ app.get("/health-data/:userId", (req, res) => {
 
             if (err) {
 
-                console.error(err);
+                console.error("Health data error:", err);
 
                 return res.status(500).json({
                     success: false,
@@ -338,10 +253,6 @@ app.get("/health-data/:userId", (req, res) => {
                 });
 
             }
-
-            // ========================================
-            // NO DATA YET
-            // ========================================
 
             if (results.length === 0) {
 
@@ -357,10 +268,6 @@ app.get("/health-data/:userId", (req, res) => {
 
             }
 
-            // ========================================
-            // RETURN USER DATA
-            // ========================================
-
             res.json({
                 success: true,
                 data: results[0]
@@ -370,7 +277,6 @@ app.get("/health-data/:userId", (req, res) => {
     );
 
 });
-
 
 // ========================================
 // CREATE / UPDATE HEALTH DATA
@@ -389,11 +295,6 @@ app.post("/health-data", (req, res) => {
         wake_up
     } = req.body;
 
-const today = getMyanmarDate();
-    // ========================================
-    // CHECK REQUIRED DATA
-    // ========================================
-
     if (!userId || !record_date) {
 
         return res.json({
@@ -403,18 +304,12 @@ const today = getMyanmarDate();
 
     }
 
-
-    // ========================================
-    // CHECK TODAY'S DATA
-    // ========================================
-
     const checkSql = 
         `SELECT *
         FROM health_data
         WHERE user_id = ?
         AND record_date = ?
     `;
-
 
     db.query(
         checkSql,
@@ -423,7 +318,7 @@ const today = getMyanmarDate();
 
             if (err) {
 
-                console.error(err);
+                console.error("Health data check error:", err);
 
                 return res.status(500).json({
                     success: false,
@@ -432,55 +327,42 @@ const today = getMyanmarDate();
 
             }
 
-
-            // ========================================
-            // UPDATE EXISTING DATA
-            // ========================================
-
+            // UPDATE
             if (results.length > 0) {
 
-                const oldData =
-                    results[0];
-
+                const oldData = results[0];
 
                 const newSteps =
                     steps !== undefined
                         ? steps
                         : oldData.steps;
 
-
                 const newSleep =
                     sleep_hours !== undefined
                         ? sleep_hours
                         : oldData.sleep_hours;
-
 
                 const newHeartRate =
                     heart_rate !== undefined
                         ? heart_rate
                         : oldData.heart_rate;
 
-
                 const newWater =
                     water_ml !== undefined
                         ? water_ml
                         : oldData.water_ml;
-
-
                 const newBedtime =
                     bedtime !== undefined
                         ? bedtime
                         : oldData.bedtime;
-
 
                 const newWakeUp =
                     wake_up !== undefined
                         ? wake_up
                         : oldData.wake_up;
 
-
                 const updateSql = 
-                    `UPDATE health_data
+                   ` UPDATE health_data
                     SET
                         steps = ?,
                         sleep_hours = ?,
@@ -491,7 +373,6 @@ const today = getMyanmarDate();
                     WHERE user_id = ?
                     AND record_date = ?
                 `;
-
 
                 db.query(
                     updateSql,
@@ -509,7 +390,7 @@ const today = getMyanmarDate();
 
                         if (err) {
 
-                            console.error(err);
+                            console.error("Health update error:", err);
 
                             return res.status(500).json({
                                 success: false,
@@ -517,7 +398,6 @@ const today = getMyanmarDate();
                             });
 
                         }
-
 
                         res.json({
                             success: true,
@@ -531,10 +411,7 @@ const today = getMyanmarDate();
                 return;
             }
 
-
-            // ========================================
-            // CREATE NEW DATA
-            // ========================================
+            // INSERT
             const insertSql = 
                 `INSERT INTO health_data
                 (
@@ -549,7 +426,6 @@ const today = getMyanmarDate();
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `;
-
 
             db.query(
                 insertSql,
@@ -567,7 +443,7 @@ const today = getMyanmarDate();
 
                     if (err) {
 
-                        console.error(err);
+                        console.error("Health insert error:", err);
 
                         return res.status(500).json({
                             success: false,
@@ -575,7 +451,6 @@ const today = getMyanmarDate();
                         });
 
                     }
-
 
                     res.json({
                         success: true,
@@ -599,8 +474,6 @@ const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, "0.0.0.0", () => {
 
-    console.log(
-        `Server running on port${PORT}`
-    );
+    console.log(`Server running on port ${PORT}`);
 
 });
