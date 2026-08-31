@@ -45,10 +45,10 @@ function getMyanmarDate() {
 // ========================================
 
 const db = mysql.createConnection({
-    host: process.env.MYSQLHOST || "localhost",
-    user: process.env.MYSQLUSER || "root",
-    password: process.env.MYSQLPASSWORD || "nadi",
-    database: process.env.MYSQLDATABASE || "smart_healthcare",
+    host: process.env.MYSQLHOST,
+    user: process.env.MYSQLUSER,
+    password: process.env.MYSQLPASSWORD,
+    database: process.env.MYSQLDATABASE,
     port: process.env.MYSQLPORT || 3306
 });
 
